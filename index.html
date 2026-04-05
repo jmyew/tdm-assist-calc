@@ -5,12 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TDM Assist Calc</title>
     <style>
-        /* [Existing Styles...] */
-        .tab-nav { display: flex; background: #2c3e50; margin: -10px -10px 15px -10px; padding: 5px; position: sticky; top: 0; z-index: 100; }
-        .tab-btn { flex: 1; padding: 12px; border: none; background: none; color: #bdc3c7; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
-        .tab-btn.active { color: white; border-bottom: 3px solid #3498db; }
-        .tab-content { display: none; }
+        :root { --primary: #2c3e50; --blue: #3498db; --green: #27ae60; --yellow: #fffde7; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 0; margin: 0; color: var(--primary); }
+        
+        /* Tab Navigation */
+        .tab-nav { display: flex; background: var(--primary); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .tab-btn { flex: 1; padding: 15px; border: none; background: none; color: #bdc3c7; font-weight: bold; cursor: pointer; font-size: 0.9rem; transition: 0.3s; }
+        .tab-btn.active { color: white; border-bottom: 4px solid var(--blue); background: rgba(255,255,255,0.1); }
+        
+        /* Content Area */
+        .tab-content { display: none; padding: 10px; }
         .tab-content.active { display: block; }
+
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 600px; margin: 10px auto; }
+        h2 { text-align: center; font-size: 1.2rem; margin: 0 0 15px 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .section-header { font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin: 15px 0 8px; padding: 5px 10px; border-radius: 4px; color: white; background: var(--blue); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        label { font-size: 0.7rem; font-weight: 600; color: #555; display: block; margin-bottom: 2px; }
+        input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; background: var(--yellow); box-sizing: border-box; }
+        button.main-calc { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; margin: 20px 0; cursor: pointer; }
+        .results-area { display: none; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px; }
+        .res-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; font-size: 0.95rem; }
+        .res-val { font-weight: bold; color: #000; }
+        .highlight { color: var(--blue); font-size: 1.1rem; }
     </style>
 </head>
 <body>
@@ -23,29 +40,115 @@
     <div id="prepost" class="tab-content active">
         <div class="card">
             <h2>Vanco Pre & Post Analysis</h2>
+            
+            <div class="section-header">1. Regimen & Levels</div>
+            <div class="grid">
+                <div class="input-group"><label>Pre Level (Cpre)</label><input type="number" id="C7" step="0.1"></div>
+                <div class="input-group"><label>Post Level (Cpost)</label><input type="number" id="C8" step="0.1"></div>
+                <div class="input-group"><label>Body Weight (kg)</label><input type="number" id="C10" step="0.1"></div>
+                <div class="input-group"><label>Dose (mg)</label><input type="number" id="C11"></div>
+                <div class="input-group"><label>Interval (tau)</label><input type="number" id="C12"></div>
+                <div class="input-group"><label>Infusion Dur (tinf)</label><input type="number" id="C13"></div>
             </div>
+
+            <div class="section-header" style="background:#7f8c8d">Sampling Times (Decimals)</div>
+            <div class="grid">
+                <div class="input-group"><label>Infusion End Time</label><input type="number" id="C16" step="0.01"></div>
+                <div class="input-group"><label>Pre-sampling Time</label><input type="number" id="C17" step="0.01"></div>
+                <div class="input-group"><label>Post-sampling Time</label><input type="number" id="C18" step="0.01"></div>
+            </div>
+
+            <button class="main-calc" onclick="calculatePrePost()">Run PK Analysis</button>
+
+            <div id="res_pk" class="results-area">
+                <div class="res-row"><span>Ke (h⁻¹)</span><span class="res-val" id="out_Ke"></span></div>
+                <div class="res-row"><span>Cmax (Peak)</span><span class="res-val" id="out_Cmax"></span></div>
+                <div class="res-row"><span>Cmin (Trough)</span><span class="res-val" id="out_Cmin"></span></div>
+                <div class="res-row"><span>Vd (L/kg)</span><span class="res-val" id="out_Vdkg"></span></div>
+                <div class="res-row"><span>AUC24</span><span class="res-val highlight" id="out_AUC"></span></div>
+            </div>
+
+            <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+            
+            <div class="section-header" style="background:var(--green)">2. New Dose Adjustment</div>
+            <div class="grid">
+                <div class="input-group"><label>New Dose (mg)</label><input type="number" id="new_Dose"></div>
+                <div class="input-group"><label>New Interval (h)</label><input type="number" id="new_Tau"></div>
+                <div class="input-group"><label>New Infusion (h)</label><input type="number" id="new_Tinf" value="1"></div>
+            </div>
+            <div id="res_adj" class="results-area" style="background:#e8f5e9;">
+                <div class="res-row"><span>Exp. Cmax</span><span class="res-val" id="out_ExpCmax"></span></div>
+                <div class="res-row"><span>Exp. Cmin</span><span class="res-val" id="out_ExpCmin"></span></div>
+                <div class="res-row"><span>Exp. AUC24</span><span class="res-val highlight" style="color:var(--green)" id="out_ExpAUC"></span></div>
+            </div>
+        </div>
     </div>
 
     <div id="preonly" class="tab-content">
         <div class="card">
-            <h2>Vanco Pre-Only (Trough Only)</h2>
-            <p style="text-align:center; color:#7f8c8d;">Logic for Pre-Only goes here...</p>
-            </div>
+            <h2>Vanco Pre-Only</h2>
+            <p style="text-align:center; color:#7f8c8d; padding:20px;">Coming Soon: Trough-based estimation logic.</p>
+        </div>
     </div>
 
     <script>
-        // Logic to switch tabs
+        // Tab Switcher
         function openTab(evt, tabName) {
             var i, tabcontent, tablinks;
             tabcontent = document.getElementsByClassName("tab-content");
-            for (i = 0; i < tabcontent.length; i++) { tabcontent[i].style.display = "none"; }
+            for (i = 0; i < tabcontent.length; i++) { tabcontent[i].style.display = "none"; tabcontent[i].classList.remove("active"); }
             tablinks = document.getElementsByClassName("tab-btn");
-            for (i = 0; i < tablinks.length; i++) { tablinks[i].className = tablinks[i].className.replace(" active", ""); }
+            for (i = 0; i < tablinks.length; i++) { tablinks[i].classList.remove("active"); }
             document.getElementById(tabName).style.display = "block";
-            evt.currentTarget.className += " active";
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
         }
 
-        // [Your existing calculateAll() function...]
+        // Math for Pre-Post
+        function calculatePrePost() {
+            const Cpre = parseFloat(document.getElementById('C7').value);
+            const Cpost = parseFloat(document.getElementById('C8').value);
+            const BW = parseFloat(document.getElementById('C10').value);
+            const Dose = parseFloat(document.getElementById('C11').value);
+            const tau = parseFloat(document.getElementById('C12').value);
+            const tinf = parseFloat(document.getElementById('C13').value);
+            const TinfEnd = parseFloat(document.getElementById('C16').value);
+            const Tpre = parseFloat(document.getElementById('C17').value);
+            const Tpost = parseFloat(document.getElementById('C18').value);
+
+            if (!Cpre || !Cpost || !Tpre || !Tpost) { alert("Missing data"); return; }
+
+            const t_prime = Tpost - TinfEnd;
+            const Ke = (Math.log(Cpost) - Math.log(Cpre)) / (tau - (Tpost - Tpre));
+            const Cmax = Cpost * Math.exp(Ke * t_prime);
+            const Cmin = Cmax * Math.exp(-Ke * (tau - tinf));
+            const Vd_kg = (Dose * (1 - Math.exp(-Ke * tinf))) / (BW * Cmax * tinf * Ke * (1 - Math.exp(-Ke * tau)));
+            
+            const AUCinf = tinf * ((Cmin + Cmax) / 2);
+            const AUCelim = (Cmax - Cmin) / Ke;
+            const AUC24 = (AUCinf + AUCelim) * (24 / tau);
+
+            document.getElementById('out_Ke').innerText = Ke.toFixed(4);
+            document.getElementById('out_Cmax').innerText = Cmax.toFixed(2);
+            document.getElementById('out_Cmin').innerText = Cmin.toFixed(2);
+            document.getElementById('out_Vdkg').innerText = Vd_kg.toFixed(3);
+            document.getElementById('out_AUC').innerText = AUC24.toFixed(1);
+            document.getElementById('res_pk').style.display = 'block';
+
+            // Adjustment
+            const nDose = parseFloat(document.getElementById('new_Dose').value);
+            const nTau = parseFloat(document.getElementById('new_Tau').value);
+            const nTinf = parseFloat(document.getElementById('new_Tinf').value);
+            if (nDose && nTau) {
+                const expCmax = (nDose * (1 - Math.exp(-Ke * nTinf))) / (Vd_kg * BW * nTinf * Ke * (1 - Math.exp(-Ke * nTau)));
+                const expCmin = expCmax * Math.exp(-Ke * (nTau - nTinf));
+                const expAUC = ((nDose * 24 / nTau) / (Dose * 24 / tau)) * AUC24;
+                document.getElementById('out_ExpCmax').innerText = expCmax.toFixed(2);
+                document.getElementById('out_ExpCmin').innerText = expCmin.toFixed(2);
+                document.getElementById('out_ExpAUC').innerText = expAUC.toFixed(1);
+                document.getElementById('res_adj').style.display = 'block';
+            }
+        }
     </script>
 </body>
 </html>
